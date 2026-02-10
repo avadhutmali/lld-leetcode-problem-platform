@@ -11,7 +11,12 @@ export const getProblems = async () => {
     return response.data;
 };
 
-export const submitCode = async (problemId: string, code: string) => {
-    const response = await api.post('/submit', { problemId, code });
-    return response.data; // This contains the AI JSON result
+export const submitCode = async (problemId: string, code: string, language: string) => {
+    try {
+        const response = await api.post('/submit', { problemId, code, language });
+        return response.data;
+    } catch (error) {
+        console.error("Error submitting code:", error);
+        throw error;
+    }
 };

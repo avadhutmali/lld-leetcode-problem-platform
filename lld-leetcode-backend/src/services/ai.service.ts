@@ -12,13 +12,13 @@ const model = genAI.getGenerativeModel({
     generationConfig: { responseMimeType: "application/json" }
 });
 
-export const evaluateCode = async (problemDescription: string, userCode: string) => {
+export const evaluateCode = async (problemDescription: string, userCode: string, language: string) => {
     const prompt = `
-    You are a Senior Software Architect acting as a Unit Test engine for Low-Level Design (LLD).
+    You are a Senior Software Architect. 
+    Review the following ${language} code for the problem: "${problemDescription}".
     
-    TASK:
-    Analyze the following code solution for the problem: "${problemDescription}".
-    Check for strict adherence to SOLID principles and Design Patterns.
+    LANGUAGE CONTEXT:
+    The user is writing in ${language}. Ensure your feedback uses ${language} specific terminology (e.g., if C++, talk about header files, virtual functions; if Java, interfaces and abstract classes).
 
     INPUT CODE:
     ${userCode}
