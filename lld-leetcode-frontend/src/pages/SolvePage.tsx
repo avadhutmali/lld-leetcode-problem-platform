@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Panel, Group } from "react-resizable-panels"; // Import Library
-import ResizeHandle from '../components/Workspace/ResizeHandle'; // Import our new handle
+import { Panel, Group } from "react-resizable-panels";
+import ResizeHandle from '../components/Workspace/ResizeHandle';
 import { ChevronDown } from 'lucide-react';
 
 import CodeEditor from '../components/Editor/CodeEditor';
@@ -95,7 +95,7 @@ const SolvePage = () => {
 
             {/* --- RESIZABLE WORKSPACE --- */}
             <div className="flex-1 overflow-hidden">
-                <Group direction="horizontal">
+                <Group orientation="horizontal">
                     
                     {/* LEFT PANEL: Problem Description */}
                     <Panel defaultSize={35} minSize={20}>
@@ -119,7 +119,7 @@ const SolvePage = () => {
 
                     {/* RIGHT PANEL: Editor + Console */}
                     <Panel minSize={30}>
-                        <Group direction="vertical">
+                        <Group orientation="vertical">
                             
                             {/* TOP RIGHT: Code Editor */}
                             <Panel defaultSize={60} minSize={20}>

@@ -1,23 +1,23 @@
-import { Panel } from "react-resizable-panels";
+import { Separator } from "react-resizable-panels";
 import { GripVertical, GripHorizontal } from "lucide-react";
 
 interface ResizeHandleProps {
   className?: string;
   direction?: "horizontal" | "vertical";
-  id?: string; // v4 sometimes expects IDs
+  id?: string;
 }
 
 export default function ResizeHandle({ className = "", direction = "horizontal", id }: ResizeHandleProps) {
   return (
-    <Panel
+    <Separator
       className={`relative flex items-center justify-center transition-colors bg-[#1a1a1a] hover:bg-blue-600 group outline-none
-        ${direction === "horizontal" ? "w-1.5 h-full cursor-col-resize" : "h-1.5 w-full cursor-row-resize"}
+        ${direction === "horizontal" ? "w-1 cursor-col-resize" : "h-1 cursor-row-resize"}
         ${className}
       `}
       id={id}
     >
       <div className={`absolute z-10 flex items-center justify-center transition-opacity opacity-0 group-hover:opacity-100
-        ${direction === "horizontal" ? "inset-y-0 -left-1 w-4" : "inset-x-0 -top-1 h-4"}
+        ${direction === "horizontal" ? "inset-y-0 -left-1.5 w-4" : "inset-x-0 -top-1.5 h-4"}
       `}>
          <div className="bg-blue-600 rounded-full p-0.5">
             {direction === "horizontal" 
@@ -26,6 +26,6 @@ export default function ResizeHandle({ className = "", direction = "horizontal",
             }
          </div>
       </div>
-    </Panel>
+    </Separator>
   );
 }
