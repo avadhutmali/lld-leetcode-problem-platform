@@ -1,24 +1,18 @@
 // src/data/problems.ts
 
-export interface TestCase {
-    id: number;
-    title: string;
-    input: string;
-    expected: string;
-}
+import { LLDTestCase } from '../types/testCase.types';
 
 export interface Problem {
     id: string;
     title: string;
     description: string;
     difficulty: 'Easy' | 'Medium' | 'Hard';
-    // NEW: Object containing code for each language
     starterCode: {
         typescript: string;
         java: string;
         cpp: string;
     };
-    testCases: TestCase[];
+    testCases: LLDTestCase[];  // New structured test cases
 }
 
 export const PROBLEMS: Problem[] = [
@@ -108,9 +102,75 @@ public:
 };`
         },
         testCases: [
-            { id: 1, title: "Fee Strategy", input: "Constraint: Remove if-else fee logic", expected: "Implement Strategy Pattern (FeeStrategy interface)" },
-            { id: 2, title: "Single Responsibility", input: "Scenario: Ticket generation", expected: "Separate Ticket class or method, not inside main Logic" },
-            { id: 3, title: "Extensibility", input: "Requirement: Add Truck support", expected: "New class can be added without changing ParkingLot.cpp/java" }
+            // ===== STRUCTURAL CHECKS (Automated) =====
+            {
+                id: "struct-1",
+                name: "Has FeeStrategy Interface",
+                type: "structural",
+                weight: 15,
+                check: {
+                    hasInterface: ["FeeStrategy"],
+                },
+                languageHints: {
+                    cpp: { containsPattern: ["class\\s+FeeStrategy[^}]*virtual.*=\\s*0"] }
+                }
+            },
+            {
+                id: "struct-2",
+                name: "Has Vehicle Class Hierarchy",
+                type: "structural",
+                weight: 15,
+                check: {
+                    hasClass: ["Vehicle"],
+                    minClassCount: 3,
+                }
+            },
+            {
+                id: "struct-3",
+                name: "No If-Else Chain for Fees",
+                type: "structural",
+                weight: 20,
+                check: {
+                    notContainsPattern: ["if.*Car.*else.*if.*Bike"],
+                }
+            },
+            {
+                id: "struct-4",
+                name: "Separate Ticket Class",
+                type: "structural",
+                weight: 10,
+                check: {
+                    hasClass: ["Ticket"],
+                }
+            },
+            // ===== AI CHECKS (Subjective) =====
+            {
+                id: "ai-1",
+                name: "Single Responsibility Principle",
+                type: "ai",
+                weight: 15,
+                criteria: "Each class should have only one reason to change. ParkingLot should not handle fee calculation directly.",
+                passIndicators: ["Fee calculation delegated to strategy", "Ticket generation in separate class"],
+                failIndicators: ["ParkingLot calculates fees directly", "One class does everything"]
+            },
+            {
+                id: "ai-2",
+                name: "Open/Closed Principle",
+                type: "ai",
+                weight: 15,
+                criteria: "Adding a new vehicle type (e.g., Truck) should not require modifying existing classes.",
+                passIndicators: ["New vehicle = new class implementing interface", "Strategy pattern used"],
+                failIndicators: ["Would need to add else-if for new vehicle", "Hardcoded vehicle types"]
+            },
+            {
+                id: "ai-3",
+                name: "Code Quality & Extensibility",
+                type: "ai",
+                weight: 10,
+                criteria: "Code is clean, well-organized, and easy to extend.",
+                passIndicators: ["Clear naming", "Proper encapsulation", "Follows language conventions"],
+                failIndicators: ["Magic numbers", "Poor naming", "Tight coupling"]
+            }
         ]
     },
     {
@@ -123,6 +183,66 @@ public:
             java: `interface Notification { void send(String msg); }`,
             cpp: `class Notification { virtual void send(string msg) = 0; };`
         },
-        testCases: []
+        testCases: [
+            // Structural
+            {
+                id: "struct-1",
+                name: "Has Notification Interface",
+                type: "structural",
+                weight: 20,
+                check: {
+                    hasInterface: ["Notification"],
+                },
+                languageHints: {
+                    cpp: { containsPattern: ["class\\s+Notification[^}]*virtual"] }
+                }
+            },
+            {
+                id: "struct-2",
+                name: "Has Multiple Notification Types",
+                type: "structural",
+                weight: 20,
+                check: {
+                    minClassCount: 3,
+                }
+            },
+            {
+                id: "struct-3",
+                name: "EmailNotification Exists",
+                type: "structural",
+                weight: 10,
+                check: {
+                    hasClass: ["EmailNotification"],
+                }
+            },
+            {
+                id: "struct-4",
+                name: "SMSNotification Exists",
+                type: "structural",
+                weight: 10,
+                check: {
+                    hasClass: ["SMSNotification"],
+                }
+            },
+            // AI
+            {
+                id: "ai-1",
+                name: "Open/Closed Principle",
+                type: "ai",
+                weight: 25,
+                criteria: "Adding a new notification type (e.g., Slack) should only require adding a new class.",
+                passIndicators: ["Each notification type is a separate class", "Common interface implemented"],
+                failIndicators: ["Switch/case on notification type", "Single class handles all types"]
+            },
+            {
+                id: "ai-2",
+                name: "Proper Abstraction",
+                type: "ai",
+                weight: 15,
+                criteria: "The design uses proper abstraction with interfaces/abstract classes.",
+                passIndicators: ["Interface defines contract", "Concrete classes implement interface"],
+                failIndicators: ["No abstraction used", "Direct instantiation only"]
+            }
+        ]
     }
 ];

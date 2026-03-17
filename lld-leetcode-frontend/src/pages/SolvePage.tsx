@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Panel, Group } from "react-resizable-panels";
 import ResizeHandle from '../components/Workspace/ResizeHandle';
 import { ChevronDown } from 'lucide-react';
@@ -7,9 +7,12 @@ import { ChevronDown } from 'lucide-react';
 import CodeEditor from '../components/Editor/CodeEditor';
 import ProblemConsole from '../components/Workspace/ProblemConsole';
 import { submitCode, getProblems } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const SolvePage = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
+    const { user, logout } = useAuth();
     
     // State
     const [language, setLanguage] = useState<'typescript' | 'java' | 'cpp'>('java');
@@ -21,15 +24,22 @@ const SolvePage = () => {
     // Fetch problem logic (Same as before)
     useEffect(() => {
         const fetchProblem = async () => {
-            const allProblems = await getProblems();
-            const found = allProblems.find((p: any) => p.id === id);
-            if (found) {
-                setProblem(found);
-                setCode(found.starterCode[language]);
+            try {
+                const allProblems = await getProblems();
+                const found = allProblems.find((p: any) => p.id === id);
+                if (found) {
+                    setProblem(found);
+                    setCode(found.starterCode[language]);
+                }
+            } catch (error: any) {
+                if (error?.response?.status === 401) {
+                    await logout();
+                    navigate('/auth', { replace: true });
+                }
             }
         };
         fetchProblem();
-    }, [id]);
+    }, [id, language, logout, navigate]);
 
     const handleLanguageChange = (newLang: 'typescript' | 'java' | 'cpp') => {
         setLanguage(newLang);
@@ -59,9 +69,17 @@ const SolvePage = () => {
                     <span className="font-bold text-gray-200">LLD LeetCode</span>
                     <span className="text-gray-500">|</span>
                     <span className="text-sm text-gray-300 truncate max-w-[200px]">{problem.title}</span>
+                    <span className="text-gray-500">|</span>
+                    <span className="text-xs text-gray-400 truncate max-w-[220px]">{user?.email}</span>
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="px-3 py-1.5 rounded text-sm border border-gray-600 hover:bg-[#343434]"
+                    >
+                        Problems
+                    </button>
                     {/* Language Dropdown */}
                     <div className="relative group z-50">
                         <button className="flex items-center gap-2 px-3 py-1.5 bg-[#333] hover:bg-[#444] rounded text-sm transition-colors border border-gray-600">
@@ -89,6 +107,16 @@ const SolvePage = () => {
                         }`}
                     >
                         {loading ? 'Judging...' : 'Run Code'}
+                    </button>
+
+                    <button
+                        onClick={async () => {
+                            await logout();
+                            navigate('/auth', { replace: true });
+                        }}
+                        className="px-3 py-1.5 rounded text-sm border border-gray-600 hover:bg-[#343434]"
+                    >
+                        Logout
                     </button>
                 </div>
             </nav>

@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SubmissionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  ATTEMPTED
+  SOLVED
+}
+
+model User {
+  id            String         @id @default(uuid()) @db.Uuid
+  email         String         @unique
+  passwordHash  String
+  role          UserRole       @default(USER)
+  createdAt     DateTime       @default(now())
+  problems      Problem[]
+  submissions   Submission[]
+  userProgress  UserProgress[]
+
+  @@map("users")
+}
+
+model Problem {
+  id              String         @id @default(uuid()) @db.Uuid
+  title           String
+  difficulty      String
+  description     String
+  starterCode     String
+  language        String
+  createdBy       String?        @db.Uuid
+  createdAt       DateTime       @default(now())
+  author          User?          @relation(fields: [createdBy], references: [id])
+  testCases       TestCase[]
+  submissions     Submission[]
+  userProgresses  UserProgress[]
+
+  @@map("problems")
+}
+
+model TestCase {
+  id                String   @id @default(uuid()) @db.Uuid
+  problemId         String   @db.Uuid
+  inputDescription  String
+  expectedPatterns  String
+  isHidden          Boolean  @default(false)
+  problem           Problem  @relation(fields: [problemId], references: [id])
+
+  @@map("test_cases")
+}
+
+model Submission {
+  id           String            @id @default(uuid()) @db.Uuid
+  userId       String            @db.Uuid
+  problemId    String            @db.Uuid
+  code         String
+  status       SubmissionStatus  @default(PENDING)
+  submittedAt  DateTime          @default(now())
+  user         User              @relation(fields: [userId], references: [id])
+  problem      Problem           @relation(fields: [problemId], references: [id])
+  designScore  DesignScore?
+
+  @@map("submissions")
+}
+
+model UserProgress {
+  id         String          @id @default(uuid()) @db.Uuid
+  userId     String          @db.Uuid
+  problemId  String          @db.Uuid
+  status     ProgressStatus  @default(NOT_STARTED)
+  solvedAt   DateTime?
+  user       User            @relation(fields: [userId], references: [id])
+  problem    Problem         @relation(fields: [problemId], references: [id])
+
+  @@unique([userId, problemId])
+  @@map("user_progress")
+}
+
+model DesignScore {
+  id                String       @id @default(uuid()) @db.Uuid
+  submissionId      String       @unique @db.Uuid
+  totalScore        Int
+  srpScore          Int
+  ocpScore          Int
+  lspScore          Int
+  ispScore          Int
+  dipScore          Int
+  detectedPatterns  Json
+  feedback          String
+  submission        Submission   @relation(fields: [submissionId], references: [id])
+
+  @@map("design_scores")
+}

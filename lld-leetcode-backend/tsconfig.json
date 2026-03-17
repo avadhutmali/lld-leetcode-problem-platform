@@ -1,4 +1,7 @@
 {
+  "ts-node": {
+    "files": true
+  },
   "compilerOptions": {
     "target": "es2020",
     "module": "commonjs",
@@ -6,5 +9,6 @@
     "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true
-  }
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts"]
 }
