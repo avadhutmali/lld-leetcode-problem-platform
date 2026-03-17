@@ -12,6 +12,9 @@ const BCRYPT_ROUNDS = 12;
 
 const refreshAllowList = new Map<string, { userId: string; expiresAt: number }>();
 
+type AuthMode = 'prisma' | 'memory';
+const authMode: AuthMode = (process.env.AUTH_MODE === 'memory' ? 'memory' : 'prisma');
+
 type JwtPayload = {
   sub: string;
   email: string;
@@ -20,6 +23,17 @@ type JwtPayload = {
 };
 
 const jwtSecret = env.jwtSecret;
+
+type MemoryUser = User & { passwordHash: string };
+const memoryUsersById = new Map<string, MemoryUser>();
+const memoryUsersByEmail = new Map<string, MemoryUser>();
+
+const toMemoryUser = (user: Omit<User, 'createdAt'> & { createdAt?: Date } & { passwordHash: string }): MemoryUser => {
+  return {
+    ...(user as MemoryUser),
+    createdAt: user.createdAt ?? new Date(),
+  };
+};
 
 const signToken = (
   payload: JwtPayload,
@@ -80,25 +94,46 @@ export const sanitizeUser = (user: User) => ({
 });
 
 export const register = async (email: string, password: string, role: UserRole = UserRole.USER) => {
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+  if (authMode === 'memory') {
+    const existing = memoryUsersByEmail.get(email);
+    if (existing) {
+      throw new Error('EMAIL_ALREADY_EXISTS');
+    }
+
+    const user = toMemoryUser({
+      id: crypto.randomUUID(),
+      email,
+      role,
+      createdAt: new Date(),
+      passwordHash,
+    });
+
+    memoryUsersById.set(user.id, user);
+    memoryUsersByEmail.set(user.email, user);
+    return user;
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw new Error('EMAIL_ALREADY_EXISTS');
   }
 
-  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-  const user = await prisma.user.create({
+  return prisma.user.create({
     data: {
       email,
       passwordHash,
       role,
     },
   });
-
-  return user;
 };
 
 export const login = async (email: string, password: string) => {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user =
+    authMode === 'memory'
+      ? memoryUsersByEmail.get(email) ?? null
+      : await prisma.user.findUnique({ where: { email } });
   if (!user) {
     throw new Error('INVALID_CREDENTIALS');
   }
@@ -149,7 +184,10 @@ export const refresh = async (refreshToken: string) => {
 
   refreshAllowList.delete(tokenId);
 
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+  const user =
+    authMode === 'memory'
+      ? memoryUsersById.get(payload.sub) ?? null
+      : await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user) {
     throw new Error('INVALID_REFRESH_TOKEN');
   }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Terminal, Cpu, Brain } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 // New structured test case type
 interface TestCase {
@@ -76,17 +76,28 @@ const ProblemConsole: React.FC<ConsoleProps> = ({ testCases, results, loading, o
         return results.score;
     };
 
+    const statusById = useMemo(() => {
+        if (!results || !isV2Result(results)) return new Map<string, 'pass' | 'fail'>();
+        return new Map(results.testResults.map(r => [r.id, r.status] as const));
+    }, [results]);
+
+    const colorForStatus = (status?: 'pass' | 'fail') => {
+        if (loading) return 'bg-amber-400';
+        if (status === 'pass') return 'bg-emerald-400';
+        if (status === 'fail') return 'bg-rose-400';
+        return 'bg-[#8b949e]';
+    };
+
     return (
-        <div className="flex flex-col h-full bg-[#1e1e1e] border-t border-gray-700">
+        <div className="flex flex-col h-full bg-[#0d1117] border-t border-[#30363d]">
             {/* --- HEADER TABS --- */}
-            <div className="flex items-center bg-[#2d2d2d] h-10 px-2 select-none">
+            <div className="flex items-center bg-[#0d1117] h-10 px-2 select-none border-b border-[#30363d]">
                 <button
                     onClick={() => setActiveTab('testcase')}
                     className={`flex items-center gap-2 px-4 py-1.5 text-sm rounded-t-md font-medium transition-colors ${
-                        activeTab === 'testcase' ? 'bg-[#1e1e1e] text-white' : 'text-gray-400 hover:text-gray-200'
+                        activeTab === 'testcase' ? 'bg-[#161b22] text-[#c9d1d9]' : 'text-[#8b949e] hover:text-[#c9d1d9]'
                     }`}
                 >
-                    <Terminal className="w-4 h-4" />
                     Test Cases ({testCases?.length || 0})
                 </button>
                 <button
@@ -94,79 +105,61 @@ const ProblemConsole: React.FC<ConsoleProps> = ({ testCases, results, loading, o
                     disabled={!results && !loading}
                     className={`flex items-center gap-2 px-4 py-1.5 text-sm rounded-t-md font-medium transition-colors ${
                         activeTab === 'result' 
-                            ? 'bg-[#1e1e1e] text-white' 
-                            : 'text-gray-400 hover:text-gray-200 disabled:opacity-50'
+                            ? 'bg-[#161b22] text-[#c9d1d9]' 
+                            : 'text-[#8b949e] hover:text-[#c9d1d9] disabled:opacity-50'
                     }`}
                 >
-                    <div className={`w-2 h-2 rounded-full ${results ? (getScore() >= 70 ? 'bg-green-500' : 'bg-red-500') : 'bg-gray-500'}`} />
+                    <div className={`w-2 h-2 rounded-full ${results ? (getScore() >= 70 ? 'bg-emerald-400' : 'bg-rose-400') : 'bg-[#8b949e]'}`} />
                     Results
                 </button>
             </div>
 
             {/* --- CONTENT AREA --- */}
-            <div className="flex-1 p-4 overflow-y-auto font-mono text-sm">
+            <div className="flex-1 px-3 py-3 overflow-y-auto font-mono text-sm">
                 
                 {/* TAB 1: TEST CASES OVERVIEW */}
                 {activeTab === 'testcase' && (
                     <div className="h-full flex flex-col">
                         {/* Test Case List */}
-                        <div className="flex flex-wrap gap-2 mb-4">
+                        <div className="flex flex-wrap gap-2 mb-3">
                             {testCases?.map((tc) => (
+                                (() => {
+                                    const status = statusById.get(tc.id);
+                                    return (
                                 <button
                                     key={tc.id}
                                     onClick={() => setActiveTestId(tc.id)}
                                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                                         activeTestId === tc.id 
-                                        ? 'bg-gray-700 text-white border border-gray-500' 
-                                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border border-transparent'
+                                        ? 'bg-[#161b22] text-[#c9d1d9] border border-[#30363d]' 
+                                        : 'bg-[#0d1117] text-[#8b949e] hover:bg-[#161b22] border border-[#30363d]'
                                     }`}
                                 >
-                                    {tc.type === 'structural' ? (
-                                        <Cpu className="w-3 h-3 text-blue-400" />
-                                    ) : (
-                                        <Brain className="w-3 h-3 text-purple-400" />
-                                    )}
+                                    <span className={`h-2 w-2 rounded-full ${colorForStatus(status)}`} />
                                     <span className="truncate max-w-[120px]">{tc.name}</span>
-                                    <span className="text-gray-500">({tc.weight}pts)</span>
+                                    <span className="text-[#8b949e]">({tc.weight}pts)</span>
                                 </button>
+                                    );
+                                })()
                             ))}
                         </div>
 
                         {/* Selected Test Details */}
                         {activeTest && (
-                            <div className="space-y-3 text-gray-300 border-t border-gray-700 pt-4">
-                                <div className="flex items-center gap-3">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                                        activeTest.type === 'structural' 
-                                        ? 'bg-blue-900/50 text-blue-400 border border-blue-700' 
-                                        : 'bg-purple-900/50 text-purple-400 border border-purple-700'
-                                    }`}>
-                                        {activeTest.type}
-                                    </span>
-                                    <span className="text-white font-semibold">{activeTest.name}</span>
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                    {activeTest.type === 'structural' 
-                                        ? '⚡ Checked automatically via code analysis' 
-                                        : '🤖 Evaluated by AI for design quality'}
-                                </div>
-                                <div className="text-sm text-gray-400">
-                                    Points: <span className="text-white font-bold">{activeTest.weight}</span>
+                            <div className="mt-2 rounded-lg border border-[#30363d] bg-[#161b22] p-3 space-y-2">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="text-sm font-semibold text-[#c9d1d9] truncate">{activeTest.name}</div>
+                                        <div className="text-xs text-[#8b949e]">
+                                            {activeTest.type === 'structural' ? 'Automatic structural check' : 'AI design check'}
+                                        </div>
+                                    </div>
+                                    <div className="shrink-0 inline-flex items-center gap-1 rounded-full border border-amber-800/60 bg-amber-950/40 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
+                                        ⚡ {activeTest.weight} pts
+                                    </div>
                                 </div>
                             </div>
                         )}
-
-                        {/* Legend */}
-                        <div className="mt-auto pt-4 border-t border-gray-700 flex gap-4 text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                                <Cpu className="w-3 h-3 text-blue-400" />
-                                <span>Structural (instant)</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                                <Brain className="w-3 h-3 text-purple-400" />
-                                <span>AI-evaluated</span>
-                            </div>
-                        </div>
                     </div>
                 )}
 
@@ -175,73 +168,67 @@ const ProblemConsole: React.FC<ConsoleProps> = ({ testCases, results, loading, o
                     <div className="h-full overflow-y-auto">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center h-32 gap-3">
-                                <div className="flex items-center gap-2 text-gray-400">
-                                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-ping"/>
-                                    <span>Running structural checks...</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-400 animate-pulse">
-                                    <span className="w-2 h-2 bg-purple-500 rounded-full"/>
-                                    <span>AI evaluation in progress...</span>
+                                <div className="flex items-center gap-2 text-[#8b949e]">
+                                    <span className="w-2 h-2 bg-amber-400 rounded-full animate-ping"/>
+                                    <span>Evaluating…</span>
                                 </div>
                             </div>
                         ) : !results ? (
-                            <div className="text-gray-500 text-center py-8">Run code to see results.</div>
+                            <div className="text-[#8b949e] text-center py-8">Run code to see results.</div>
                         ) : isV2Result(results) ? (
                             /* V2 Results Display */
                             <div className="space-y-4">
                                 {/* Score Header */}
-                                <div className={`flex items-center justify-between p-4 rounded-lg ${
-                                    results.percentage >= 70 ? 'bg-green-900/20 border border-green-700' : 'bg-red-900/20 border border-red-700'
+                                <div className={`flex items-center justify-between p-4 rounded-lg border ${
+                                    results.percentage >= 70 ? 'bg-emerald-950/30 border-emerald-800/60' : 'bg-rose-950/30 border-rose-800/60'
                                 }`}>
                                     <div>
-                                        <div className={`text-2xl font-bold ${results.percentage >= 70 ? 'text-green-400' : 'text-red-400'}`}>
+                                        <div className={`text-2xl font-bold ${results.percentage >= 70 ? 'text-emerald-300' : 'text-rose-300'}`}>
                                             {results.percentage >= 70 ? '✓ Accepted' : '✗ Needs Improvement'}
                                         </div>
-                                        <div className="text-sm text-gray-400">{results.summary}</div>
+                                        <div className="text-sm text-[#8b949e]">{results.summary}</div>
                                     </div>
                                     <div className="text-right">
-                                        <div className={`text-3xl font-bold ${results.percentage >= 70 ? 'text-green-400' : 'text-red-400'}`}>
+                                        <div className={`text-3xl font-bold ${results.percentage >= 70 ? 'text-emerald-300' : 'text-rose-300'}`}>
                                             {results.percentage}%
                                         </div>
-                                        <div className="text-xs text-gray-500">{results.totalScore}/{results.maxScore} pts</div>
+                                        <div className="text-xs text-[#8b949e]">{results.totalScore}/{results.maxScore} pts</div>
                                     </div>
                                 </div>
 
                                 {/* Test Results Grid */}
-                                <div className="space-y-2">
+                                <div className="rounded-lg border border-[#30363d] bg-[#161b22] p-3 space-y-2">
                                     {results.testResults.map((result) => (
                                         <div 
                                             key={result.id} 
-                                            className={`p-3 rounded border-l-4 bg-gray-800/30 ${
-                                                result.status === 'pass' ? 'border-green-500' : 'border-red-500'
+                                            className={`p-3 rounded border ${
+                                                result.status === 'pass'
+                                                    ? 'border-emerald-900/40 bg-emerald-950/20'
+                                                    : 'border-rose-900/40 bg-rose-950/20'
                                             }`}
                                         >
                                             <div className="flex items-center justify-between mb-1">
                                                 <div className="flex items-center gap-2">
                                                     {result.status === 'pass' 
-                                                        ? <CheckCircle className="w-4 h-4 text-green-500"/> 
-                                                        : <XCircle className="w-4 h-4 text-red-500"/>
+                                                        ? <CheckCircle className="w-4 h-4 text-emerald-400"/> 
+                                                        : <XCircle className="w-4 h-4 text-rose-400"/>
                                                     }
-                                                    {result.type === 'structural' 
-                                                        ? <Cpu className="w-3 h-3 text-blue-400"/>
-                                                        : <Brain className="w-3 h-3 text-purple-400"/>
-                                                    }
-                                                    <span className="font-semibold text-gray-200">{result.name}</span>
+                                                    <span className="font-semibold text-[#c9d1d9]">{result.name}</span>
                                                 </div>
-                                                <span className={`text-xs font-mono ${result.status === 'pass' ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {result.pointsEarned}/{result.pointsPossible}
+                                                <span className="text-xs font-mono text-amber-300 border border-amber-800/60 bg-amber-950/30 rounded-full px-2 py-0.5">
+                                                    ⚡ {result.pointsEarned}/{result.pointsPossible} pts
                                                 </span>
                                             </div>
-                                            <p className="text-xs text-gray-400 ml-6 pl-3">{result.reason}</p>
+                                            <p className="text-xs text-[#8b949e] ml-6 pl-3">{result.reason}</p>
                                         </div>
                                     ))}
                                 </div>
 
                                 {/* Suggestions */}
                                 {results.suggestions.length > 0 && (
-                                    <div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700/50 rounded">
-                                        <div className="text-yellow-500 text-xs font-bold uppercase mb-2">💡 Suggestions</div>
-                                        <ul className="space-y-1 text-xs text-gray-300">
+                                    <div className="mt-4 p-3 bg-amber-950/30 border border-amber-800/60 rounded">
+                                        <div className="text-amber-300 text-xs font-bold uppercase mb-2">Suggestions</div>
+                                        <ul className="space-y-1 text-xs text-[#c9d1d9]">
                                             {results.suggestions.map((s, i) => (
                                                 <li key={i}>• {s}</li>
                                             ))}
@@ -252,25 +239,23 @@ const ProblemConsole: React.FC<ConsoleProps> = ({ testCases, results, loading, o
                         ) : (
                             /* V1 Legacy Results Display */
                             <div>
-                                <div className={`text-xl font-bold mb-4 ${results.score >= 80 ? 'text-green-500' : 'text-red-500'}`}>
+                                <div className={`text-xl font-bold mb-4 ${results.score >= 80 ? 'text-emerald-300' : 'text-rose-300'}`}>
                                     {results.score >= 80 ? 'Accepted' : 'Wrong Answer'} ({results.score}/100)
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {results.solid_analysis?.map((item, idx) => (
                                         <div 
                                             key={idx} 
-                                            className={`p-3 rounded border-l-4 bg-gray-800/30 ${
-                                                item.status === 'Pass' ? 'border-green-500' : 'border-red-500'
-                                            }`}
+                                            className={`p-3 rounded border border-[#30363d] bg-[#161b22]`}
                                         >
                                             <div className="flex items-center gap-2 mb-1">
                                                 {item.status === 'Pass' 
-                                                    ? <CheckCircle className="w-4 h-4 text-green-500"/> 
-                                                    : <XCircle className="w-4 h-4 text-red-500"/>
+                                                    ? <CheckCircle className="w-4 h-4 text-emerald-400"/> 
+                                                    : <XCircle className="w-4 h-4 text-rose-400"/>
                                                 }
-                                                <span className="font-semibold text-gray-200">{item.principle}</span>
+                                                <span className="font-semibold text-[#c9d1d9]">{item.principle}</span>
                                             </div>
-                                            <p className="text-xs text-gray-400 ml-6">{item.reason}</p>
+                                            <p className="text-xs text-[#8b949e] ml-6">{item.reason}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -281,17 +266,17 @@ const ProblemConsole: React.FC<ConsoleProps> = ({ testCases, results, loading, o
             </div>
 
             {/* --- ACTION BAR --- */}
-            <div className="h-12 bg-[#2d2d2d] flex items-center justify-between px-4 shrink-0">
-                <div className="text-xs text-gray-500">
-                    {testCases?.length || 0} checks • {testCases?.filter(t => t.type === 'structural').length || 0} structural • {testCases?.filter(t => t.type === 'ai').length || 0} AI
+            <div className="h-12 bg-[#0d1117] flex items-center justify-between px-4 shrink-0 border-t border-[#30363d]">
+                <div className="text-xs text-[#8b949e]">
+                    {testCases?.length || 0} checks
                 </div>
                 <button
                     onClick={onRun}
                     disabled={loading}
                     className={`px-5 py-1.5 rounded text-sm font-semibold transition-colors ${
                         loading 
-                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
-                        : 'bg-green-600 hover:bg-green-500 text-white'
+                        ? 'bg-[#161b22] text-[#8b949e] border border-[#30363d] cursor-not-allowed' 
+                        : 'bg-[#ffa116] hover:bg-[#ffb23b] text-black'
                     }`}
                 >
                     {loading ? 'Evaluating...' : 'Run'}

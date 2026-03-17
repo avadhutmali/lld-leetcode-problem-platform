@@ -8,7 +8,7 @@ interface CodeEditorProps {
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ code, onChange, language = "typescript" }) => {
     return (
-        <div className="h-full w-full border border-gray-700 rounded-lg overflow-hidden shadow-xl">
+        <div className="h-full w-full border border-[#30363d] rounded-lg overflow-hidden">
             <Editor
                 height="100%"
                 defaultLanguage={language}

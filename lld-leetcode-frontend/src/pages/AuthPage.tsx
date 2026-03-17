@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 const AuthPage: React.FC = () => {
   const navigate = useNavigate();
@@ -36,55 +38,72 @@ const AuthPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#111827] to-[#1f2937] text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-[#101827]/90 border border-slate-700 rounded-2xl p-6 shadow-2xl">
-        <h1 className="text-2xl font-semibold mb-1">LLD LeetCode</h1>
-        <p className="text-sm text-slate-400 mb-6">{mode === 'login' ? 'Sign in to continue' : 'Create an account to start solving'}</p>
+    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <div className="h-8 w-8 rounded-md bg-[#161b22] border border-[#30363d] grid place-items-center">
+            <span className="text-[12px] font-semibold text-[#ffa116]">LLD</span>
+          </div>
+          <span className="text-lg font-semibold tracking-tight">LLD LeetCode</span>
+        </div>
+
+        <div className="bg-[#0d1117] border border-[#30363d] rounded-2xl shadow-sm p-6">
+          <h1 className="text-xl font-semibold mb-1">
+            {mode === 'login' ? 'Sign in' : 'Create your account'}
+          </h1>
+          <p className="text-sm text-[#8b949e] mb-5">
+            {mode === 'login' ? 'Use your email to continue.' : 'Start solving LLD problems in minutes.'}
+          </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Email</label>
-            <input
+            <label className="block text-sm text-[#8b949e] mb-1">Email</label>
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 outline-none focus:border-teal-500"
+              placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Password</label>
-            <input
+            <label className="block text-sm text-[#8b949e] mb-1">Password</label>
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               minLength={8}
               required
-              className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 outline-none focus:border-teal-500"
+              placeholder="At least 8 characters"
             />
           </div>
 
-          {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+          {error ? <p className="text-sm text-rose-300 bg-rose-950/40 border border-rose-900/40 rounded-md px-3 py-2">{error}</p> : null}
 
-          <button
+          <Button
             type="submit"
             disabled={loading}
-            className="w-full bg-teal-600 hover:bg-teal-500 disabled:bg-slate-600 transition-colors rounded py-2 font-medium"
+            variant="primary"
+            className="w-full h-10"
           >
             {loading ? 'Please wait...' : mode === 'login' ? 'Login' : 'Create account'}
-          </button>
+          </Button>
         </form>
 
-        <button
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            setError(null);
-          }}
-          className="mt-4 text-sm text-slate-300 hover:text-white"
-        >
-          {mode === 'login' ? 'Need an account? Register' : 'Already have an account? Login'}
-        </button>
+          <div className="mt-4 text-sm text-[#8b949e]">
+            {mode === 'login' ? 'New here?' : 'Already have an account?'}{' '}
+            <button
+              onClick={() => {
+                setMode(mode === 'login' ? 'register' : 'login');
+                setError(null);
+              }}
+              className="font-medium text-[#c9d1d9] hover:text-[#ffa116]"
+            >
+              {mode === 'login' ? 'Create an account' : 'Sign in'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

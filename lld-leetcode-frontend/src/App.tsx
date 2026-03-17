@@ -3,21 +3,23 @@ import SolvePage from './pages/SolvePage';
 import HomePage from './pages/HomePage';
 import AuthPage from './pages/AuthPage';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import AppLayout from './layout/AppLayout';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/" element={<HomePage />} />
         <Route
-          path="/solve/:id"
           element={(
             <ProtectedRoute>
-              <SolvePage />
+              <AppLayout />
             </ProtectedRoute>
           )}
-        />
+        >
+          <Route path="/" element={<HomePage />} />
+          <Route path="/solve/:id" element={<SolvePage />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );
