@@ -15,6 +15,7 @@ type JwtPayload = {
   email: string;
   role: UserRole;
   tokenId?: string;
+  jti?: string;
 };
 
 const jwtSecret = env.jwtSecret;
@@ -54,6 +55,10 @@ const buildAuthPayload = (user: User): JwtPayload => ({
   email: user.email,
   role: user.role,
 });
+
+const getRefreshTokenId = (payload: JwtPayload): string | undefined => {
+  return payload.tokenId ?? payload.jti;
+};
 
 const parseTtlToMs = (ttl: string): number => {
   const match = ttl.match(/^(\d+)([smhd])$/);
@@ -132,7 +137,7 @@ export const login = async (email: string, password: string) => {
 
 export const refresh = async (refreshToken: string) => {
   const payload = verifyToken(refreshToken, REFRESH_TOKEN_AUDIENCE);
-  const tokenId = payload.tokenId;
+  const tokenId = getRefreshTokenId(payload);
 
   if (!tokenId) {
     throw new Error('INVALID_REFRESH_TOKEN');
@@ -152,7 +157,12 @@ export const refresh = async (refreshToken: string) => {
     throw new Error('INVALID_REFRESH_TOKEN');
   }
 
-  await prisma.refreshToken.delete({ where: { tokenId } });
+  // Use deleteMany to avoid P2025 under concurrent refresh attempts.
+  const deleteResult = await prisma.refreshToken.deleteMany({ where: { tokenId } });
+  if (deleteResult.count === 0) {
+    throw new Error('INVALID_REFRESH_TOKEN');
+  }
+
   const user = storedToken.user;
 
   const newTokenId = crypto.randomUUID();
@@ -185,8 +195,9 @@ export const logout = async (refreshToken?: string) => {
 
   try {
     const payload = verifyToken(refreshToken, REFRESH_TOKEN_AUDIENCE);
-    if (payload.tokenId) {
-      await prisma.refreshToken.deleteMany({ where: { tokenId: payload.tokenId } });
+    const tokenId = getRefreshTokenId(payload);
+    if (tokenId) {
+      await prisma.refreshToken.deleteMany({ where: { tokenId } });
     }
   } catch {
     // Ignore invalid token errors at logout.

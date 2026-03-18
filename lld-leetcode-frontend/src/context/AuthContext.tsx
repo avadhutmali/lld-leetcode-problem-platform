@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   loginUser,
   logoutUser,
@@ -27,8 +27,14 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const bootstrappedRef = useRef(false);
 
   useEffect(() => {
+    if (bootstrappedRef.current) {
+      return;
+    }
+    bootstrappedRef.current = true;
+
     const bootstrapAuth = async () => {
       try {
         const refreshResponse = await refreshSession();
@@ -37,7 +43,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setAccessToken(refreshedToken);
 
         if (!refreshedToken) {
-          setUser(null);
+          // Keep current in-memory user if already set; avoid clobbering state on duplicate bootstrap.
+          setUser((prev) => prev);
           return;
         }
 
