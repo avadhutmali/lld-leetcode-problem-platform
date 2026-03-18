@@ -1,4 +1,4 @@
-generator client {
+  generator client {
   provider = "prisma-client-js"
 }
 
@@ -25,16 +25,28 @@ enum ProgressStatus {
 }
 
 model User {
-  id            String         @id @default(uuid()) @db.Uuid
-  email         String         @unique
-  passwordHash  String
-  role          UserRole       @default(USER)
-  createdAt     DateTime       @default(now())
-  problems      Problem[]
-  submissions   Submission[]
-  userProgress  UserProgress[]
+  id             String         @id @default(uuid()) @db.Uuid
+  email          String         @unique
+  passwordHash   String
+  role           UserRole       @default(USER)
+  createdAt      DateTime       @default(now())
+  problems       Problem[]
+  submissions    Submission[]
+  userProgress   UserProgress[]
+  refreshTokens  RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenId   String   @unique
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
 }
 
 model Problem {

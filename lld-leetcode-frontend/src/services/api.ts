@@ -33,7 +33,14 @@ api.interceptors.response.use(
         const originalRequest = error.config as typeof error.config & { _retry?: boolean };
         const status = error.response?.status;
 
-        if (status !== 401 || originalRequest?._retry || originalRequest?.url?.includes('/auth/')) {
+        // Skip retry for auth endpoints that shouldn't be retried on 401
+        const url = originalRequest?.url ?? '';
+        const skipRetry =
+            originalRequest?._retry ||
+            url.includes('/auth/refresh') ||
+            url.includes('/auth/login') ||
+            url.includes('/auth/register');
+        if (status !== 401 || skipRetry) {
             return Promise.reject(error);
         }
 
@@ -51,6 +58,13 @@ api.interceptors.response.use(
         isRefreshing = true;
         try {
             const refreshResponse = await api.post('/auth/refresh');
+            // Backend returns 204 when there is no active session
+            if (refreshResponse.status === 204) {
+                setAccessToken(null);
+                drainPendingResolvers(null);
+                return Promise.reject(error);
+            }
+
             const newToken = refreshResponse.data?.data?.accessToken ?? null;
             setAccessToken(newToken);
             drainPendingResolvers(newToken);
@@ -83,6 +97,8 @@ export const loginUser = async (email: string, password: string) => {
 
 export const refreshSession = async () => {
     const response = await api.post('/auth/refresh');
+    // Backend returns 204 when there is no active session
+    if (response.status === 204) return null;
     return response.data;
 };
 

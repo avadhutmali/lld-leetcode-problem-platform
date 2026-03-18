@@ -10,11 +10,6 @@ const REFRESH_TOKEN_AUDIENCE = 'lld-leetcode-refresh';
 const ISSUER = 'lld-leetcode-backend';
 const BCRYPT_ROUNDS = 12;
 
-const refreshAllowList = new Map<string, { userId: string; expiresAt: number }>();
-
-type AuthMode = 'prisma' | 'memory';
-const authMode: AuthMode = (process.env.AUTH_MODE === 'memory' ? 'memory' : 'prisma');
-
 type JwtPayload = {
   sub: string;
   email: string;
@@ -23,17 +18,6 @@ type JwtPayload = {
 };
 
 const jwtSecret = env.jwtSecret;
-
-type MemoryUser = User & { passwordHash: string };
-const memoryUsersById = new Map<string, MemoryUser>();
-const memoryUsersByEmail = new Map<string, MemoryUser>();
-
-const toMemoryUser = (user: Omit<User, 'createdAt'> & { createdAt?: Date } & { passwordHash: string }): MemoryUser => {
-  return {
-    ...(user as MemoryUser),
-    createdAt: user.createdAt ?? new Date(),
-  };
-};
 
 const signToken = (
   payload: JwtPayload,
@@ -96,25 +80,6 @@ export const sanitizeUser = (user: User) => ({
 export const register = async (email: string, password: string, role: UserRole = UserRole.USER) => {
   const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
-  if (authMode === 'memory') {
-    const existing = memoryUsersByEmail.get(email);
-    if (existing) {
-      throw new Error('EMAIL_ALREADY_EXISTS');
-    }
-
-    const user = toMemoryUser({
-      id: crypto.randomUUID(),
-      email,
-      role,
-      createdAt: new Date(),
-      passwordHash,
-    });
-
-    memoryUsersById.set(user.id, user);
-    memoryUsersByEmail.set(user.email, user);
-    return user;
-  }
-
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw new Error('EMAIL_ALREADY_EXISTS');
@@ -130,10 +95,7 @@ export const register = async (email: string, password: string, role: UserRole =
 };
 
 export const login = async (email: string, password: string) => {
-  const user =
-    authMode === 'memory'
-      ? memoryUsersByEmail.get(email) ?? null
-      : await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
     throw new Error('INVALID_CREDENTIALS');
   }
@@ -144,6 +106,7 @@ export const login = async (email: string, password: string) => {
   }
 
   const tokenId = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + parseTtlToMs(env.refreshTokenTtl));
   const accessToken = signToken(
     buildAuthPayload(user),
     env.accessTokenTtl as SignOptions['expiresIn'],
@@ -156,9 +119,8 @@ export const login = async (email: string, password: string) => {
     tokenId
   );
 
-  refreshAllowList.set(tokenId, {
-    userId: user.id,
-    expiresAt: Date.now() + parseTtlToMs(env.refreshTokenTtl),
+  await prisma.refreshToken.create({
+    data: { tokenId, userId: user.id, expiresAt },
   });
 
   return {
@@ -176,23 +138,25 @@ export const refresh = async (refreshToken: string) => {
     throw new Error('INVALID_REFRESH_TOKEN');
   }
 
-  const allowEntry = refreshAllowList.get(tokenId);
-  if (!allowEntry || allowEntry.userId !== payload.sub || allowEntry.expiresAt < Date.now()) {
-    refreshAllowList.delete(tokenId);
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: { tokenId },
+    include: { user: true },
+  });
+
+  if (
+    !storedToken ||
+    storedToken.userId !== payload.sub ||
+    storedToken.expiresAt < new Date()
+  ) {
+    await prisma.refreshToken.deleteMany({ where: { tokenId } });
     throw new Error('INVALID_REFRESH_TOKEN');
   }
 
-  refreshAllowList.delete(tokenId);
-
-  const user =
-    authMode === 'memory'
-      ? memoryUsersById.get(payload.sub) ?? null
-      : await prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user) {
-    throw new Error('INVALID_REFRESH_TOKEN');
-  }
+  await prisma.refreshToken.delete({ where: { tokenId } });
+  const user = storedToken.user;
 
   const newTokenId = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + parseTtlToMs(env.refreshTokenTtl));
   const accessToken = signToken(
     buildAuthPayload(user),
     env.accessTokenTtl as SignOptions['expiresIn'],
@@ -205,9 +169,8 @@ export const refresh = async (refreshToken: string) => {
     newTokenId
   );
 
-  refreshAllowList.set(newTokenId, {
-    userId: user.id,
-    expiresAt: Date.now() + parseTtlToMs(env.refreshTokenTtl),
+  await prisma.refreshToken.create({
+    data: { tokenId: newTokenId, userId: user.id, expiresAt },
   });
 
   return {
@@ -217,13 +180,13 @@ export const refresh = async (refreshToken: string) => {
   };
 };
 
-export const logout = (refreshToken?: string) => {
+export const logout = async (refreshToken?: string) => {
   if (!refreshToken) return;
 
   try {
     const payload = verifyToken(refreshToken, REFRESH_TOKEN_AUDIENCE);
     if (payload.tokenId) {
-      refreshAllowList.delete(payload.tokenId);
+      await prisma.refreshToken.deleteMany({ where: { tokenId: payload.tokenId } });
     }
   } catch {
     // Ignore invalid token errors at logout.

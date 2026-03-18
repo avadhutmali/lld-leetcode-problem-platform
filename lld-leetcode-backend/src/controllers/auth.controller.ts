@@ -7,7 +7,7 @@ const REFRESH_COOKIE = 'refreshToken';
 
 const refreshCookieOptions = {
   httpOnly: true,
-  sameSite: 'strict' as const,
+  sameSite: (env.nodeEnv === 'production' ? 'strict' : 'lax') as 'strict' | 'lax',
   secure: env.secureCookies,
   path: '/api/auth',
   maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -72,7 +72,8 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
 export const refreshHandler = async (req: Request, res: Response): Promise<void> => {
   const token = req.cookies?.[REFRESH_COOKIE] as string | undefined;
   if (!token) {
-    res.status(401).json({ success: false, message: 'Refresh token cookie is missing' });
+    // No refresh cookie: treat as no active session, but not an error
+    res.status(204).end();
     return;
   }
 
@@ -88,17 +89,31 @@ export const refreshHandler = async (req: Request, res: Response): Promise<void>
       },
     });
   } catch (error) {
+    if (error instanceof Error && error.message === 'INVALID_REFRESH_TOKEN') {
+      // Expected case for expired/invalid session: clear cookie and return 204 (no active session)
+      res.clearCookie(REFRESH_COOKIE, {
+        path: refreshCookieOptions.path,
+        httpOnly: refreshCookieOptions.httpOnly,
+        sameSite: refreshCookieOptions.sameSite,
+        secure: refreshCookieOptions.secure,
+      });
+      res.status(204).end();
+      return;
+    }
+
     console.error(error);
-    res.status(401).json({ success: false, message: 'Invalid refresh token' });
+    res.status(500).json({ success: false, message: 'Unable to refresh session' });
   }
 };
 
-export const logoutHandler = (req: Request, res: Response): void => {
+export const logoutHandler = async (req: Request, res: Response): Promise<void> => {
   const token = req.cookies?.[REFRESH_COOKIE] as string | undefined;
-  logout(token);
+  await logout(token);
   res.clearCookie(REFRESH_COOKIE, {
-    ...refreshCookieOptions,
-    maxAge: undefined,
+    path: refreshCookieOptions.path,
+    httpOnly: refreshCookieOptions.httpOnly,
+    sameSite: refreshCookieOptions.sameSite,
+    secure: refreshCookieOptions.secure,
   });
   res.json({ success: true });
 };

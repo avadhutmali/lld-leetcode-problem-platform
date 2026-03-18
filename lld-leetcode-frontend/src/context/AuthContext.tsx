@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  getMe,
   loginUser,
   logoutUser,
   refreshSession,
@@ -34,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const refreshResponse = await refreshSession();
         const refreshedToken = refreshResponse?.data?.accessToken ?? null;
+        const refreshedUser = refreshResponse?.data?.user ?? null;
         setAccessToken(refreshedToken);
 
         if (!refreshedToken) {
@@ -41,8 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
-        const meResponse = await getMe();
-        setUser(meResponse?.data ?? null);
+        // Use user from refresh response directly (avoids extra getMe call and race conditions)
+        setUser(refreshedUser);
       } catch {
         setAccessToken(null);
         setUser(null);
